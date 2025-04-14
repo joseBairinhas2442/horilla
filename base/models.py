@@ -1191,7 +1191,7 @@ class DynamicEmailConfiguration(HorillaModel):
     )
 
     username = models.CharField(
-        null=True,
+        blank=True,
         max_length=256,
         verbose_name=_("Email Host Username"),
     )
@@ -1203,7 +1203,7 @@ class DynamicEmailConfiguration(HorillaModel):
     )
 
     password = models.CharField(
-        null=True,
+        blank=True,
         max_length=256,
         verbose_name=_("Email Authentication Password"),
     )

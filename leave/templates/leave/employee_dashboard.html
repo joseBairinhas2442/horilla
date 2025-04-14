@@ -137,7 +137,9 @@
 <script>
     $(document).ready(function () {
         $("#requestedLeaves").on("click", function () {
-            window.location.href = '{% url "user-request-view" %}?status=requested'
+            window.location.href = '{% url "
+            
+            " %}?status=requested'
         })
         $("#approvedLeaves").on("click", function () {
             window.location.href = '{% url "user-request-view" %}?status=approved'
