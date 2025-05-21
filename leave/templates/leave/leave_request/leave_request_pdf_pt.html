@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <style>
+       <style>
         @page {
             size: landscape;
             margin: 5mm;
@@ -178,14 +178,14 @@
                 {% endif %}
             </div>
             <div class="info-cell">
-                <div class="year-info"><strong>YEAR:</strong> {{ report_creation_date|date:"Y" }}</div>
+                <div class="year-info"><strong>ANO:</strong> {{ report_creation_date|date:"Y" }}</div>
                 <div class="company-info">
                     {% if report.company %}
-                    <div><strong>COMPANY:</strong> {{ report.company.company }}</div>
-                    <div><strong>ADDRESS:</strong> {{ report.company.address }}</div>
-                    <div><strong>CITY:</strong> {{ report.company.state }}</div>
-                    <div><strong>STATE:</strong> {{ report.company.city }}</div>
-                    <div><strong>ZIP:</strong> {{ report.company.zip }}</div>
+                    <div><strong>NOME ENTIDADE:</strong> {{ report.company.company }}</div>
+                    <div><strong>SEDE:</strong> {{ report.company.address }}</div>
+                    <div><strong>ESTABELECIMENTO:</strong> {{ report.company.state }}</div>
+                    <div><strong>NISS:</strong> {{ report.company.niss }}</div>
+                    <div><strong>NIF:</strong> {{ report.company.nif }}</div>
                     {% endif %}
                 </div>
             </div>
@@ -194,28 +194,28 @@
        
         <div style="width: 100%; overflow: hidden;">
         <div class="report-title">
-            <h1>LEAVE REPORT</h1>
+            <h1>MAPA DE FÉRIAS</h1>
         </div>
         <div>
-            <h4 style="text-align:center ;">Artigo 241ºct</h4>
+            <h4 style="text-align:center ;">Artigo 241º CT</h4>
         </div>
         <!-- TABLE -->
         <table>
             <thead>
                 <tr>
-                    <th class="periods-header col-employee" rowspan="2">Employee</th>
-                    <th class="periods-header col-total" rowspan="2">Total<br>Leaves</th>
-                    <th class="periods-header" colspan="6">Leave Periods</th>
-                    <th class="periods-header col-used" rowspan="2">Used<br>Leaves</th>
-                    <th class="periods-header col-remaining" rowspan="2">Remaining<br>Leaves</th>
+                    <th class="periods-header col-employee" rowspan="2">Nome</th>
+                    <th class="periods-header col-total" rowspan="2">Dias de<br>Férias</th>
+                    <th class="periods-header" colspan="6">Períodos</th>
+                    <th class="periods-header col-used" rowspan="2">Dias<br>Marcados</th>
+                    <th class="periods-header col-remaining" rowspan="2">Dias por<br>Marcar</th>
                 </tr>
                 <tr>
-                    <th class="period-cell-l col-period">Period 1<br>Start</th>
-                    <th class="period-cell-r col-period">Period 1<br>End</th>
-                    <th class="period-cell-l col-period">Period 2<br>Start</th>
-                    <th class="period-cell-r col-period">Period 2<br>End</th>
-                    <th class="period-cell-l col-period">Period 3<br>Start</th>
-                    <th class="period-cell-r col-period">Period 3<br>End</th>
+                    <th class="period-cell-l col-period">1º Período<br>Início</th>
+                    <th class="period-cell-r col-period">1º Período<br>Fim</th>
+                    <th class="period-cell-l col-period">2º Período<br>Início</th>
+                    <th class="period-cell-r col-period">2º Período<br>Fim</th>
+                    <th class="period-cell-l col-period">3º Período<br>Início</th>
+                    <th class="period-cell-r col-period">3º Período<br>Fim</th>
                 </tr>
             </thead>
             <tbody>
@@ -253,11 +253,11 @@
         </div>
         <!-- FOOTER -->
         <div class="footer">
-            <div class="footer-note">* New hire (joined within the last year)</div>
+            <div class="footer-note">*Nova admissão</div>
             <div class="clearfix">
-                <div class="footer-date bot-margins">Date: {{ report_creation_date|date:"d-m-Y" }}</div>
+                <div class="footer-date bot-margins">Data: {{ report_creation_date|date:"d-m-Y" }}</div>
                 <div class="line-center">_________________________________________________________</div>
-                <div class="footer-signature">Human Resources Management</div>
+                <div class="footer-signature">Direção de Recursos Humanos</div>
             </div>
         </div>
     </div>

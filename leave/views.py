@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from io import BytesIO
 from urllib.parse import parse_qs, unquote
-
+from itertools import islice
 import pandas as pd
 from django.apps import apps
 from django.contrib import messages
@@ -659,33 +659,23 @@ def generate_leave_request_pdf(template_path, context, html=False):
     except Exception as e:
         logger.exception("Error generating PDF")
         return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
-
-
-@login_required
-@manager_can_enter("leave.view_leaverequest")
+    
 def create_leave_report(request):
     """
-    Generate a Leave Report as a PDF and return it in an HttpResponse.
-
-    Args:
-        request (HttpRequest): The request object.
-
-    Returns:
-        HttpResponse: A response containing the PDF content.
+    Generate a Leave Report as a PDF with separate sections for each reporting company.
+    Employees are grouped by their effective reporting company (either their reporting_company_id 
+    or their work company if reporting_company_id is null).
     """
-    employee_data = {}
-    company_id = request.session.get("selected_company")
-    if company_id == "all" or not company_id:
-        company = Company.objects.all()
-    else:
-        company = Company.objects.filter(id=company_id).first()
+    selected_company_id = request.session.get("selected_company")
+    
 
     leave_requests = LeaveRequest.objects.filter(status="approved").select_related(
         "employee_id", "leave_type_id"
     )
+
     used_days_map = defaultdict(float)
     leave_request_map = defaultdict(list)
-
+    
     for lreq in leave_requests:
         key = (
             lreq.employee_id.id,
@@ -693,76 +683,116 @@ def create_leave_report(request):
         )
         used_days_map[key] += lreq.requested_days
         leave_request_map[lreq.employee_id.id].append(lreq)
-
-    employees = Employee.objects.all()
-
+    
+    employees = Employee.objects.select_related(
+        'employee_work_info'
+    ).prefetch_related('available_leave')
+    
+    employees_by_company = defaultdict(list)
+    
     for employee in employees:
-        employee_id = employee.id
-        emp_data = {
-            "employee": employee,
-            "total_leave_days": 0,
-            "used_leave_days": 0,
-            "remaining_leave_days": 0,
-            "leave_requests": leave_request_map.get(employee_id, []),
-            "leave_types_counted": set(),
-            "new_hire": False,
-        }
+        work_info = employee.employee_work_info
+        
+        work_company = work_info.company_id
+        reporting_company = work_info.reporting_company_id
+        
+        effective_company = reporting_company if reporting_company else work_company
+        
+        employees_by_company[effective_company].append(employee)
+    
+    company_reports = []
+    
+    for company, company_employees in employees_by_company.items():
+        if not company_employees:
+            continue
+            
+        employee_data = {}
+        
+        for employee in company_employees:
+            employee_id = employee.id
+            work_info = employee.employee_work_info
+            
+            emp_data = {
+                "employee": employee,
+                "total_leave_days": 0,
+                "used_leave_days": 0,
+                "remaining_leave_days": 0,
+                "leave_requests": leave_request_map.get(employee_id, []),
+                "leave_types_counted": set(),
+                "new_hire": False,
+            }
 
-        if employee.employee_work_info:
-            hire_date = employee.employee_work_info.date_joining
-            if hire_date and (date.today() - hire_date) <= timedelta(days=365):
-                emp_data["new_hire"] = True
+            if work_info and work_info.date_joining:
+                if (date.today() - work_info.date_joining) <= timedelta(days=365):
+                    emp_data["new_hire"] = True
 
-        assigned_leave_types = LeaveType.objects.filter(
-            id__in=employee.available_leave.values_list("leave_type_id", flat=True)
-        )
+            assigned_leave_types = LeaveType.objects.filter(
+                id__in=employee.available_leave.values_list("leave_type_id", flat=True)
+            )
 
-        for leave_type in assigned_leave_types:
-            leave_type_id = leave_type.id
+            for leave_type in assigned_leave_types:
+                leave_type_id = leave_type.id
 
-            if leave_type_id in emp_data["leave_types_counted"]:
-                continue
+                if leave_type_id in emp_data["leave_types_counted"]:
+                    continue
 
-            emp_data["leave_types_counted"].add(leave_type_id)
+                emp_data["leave_types_counted"].add(leave_type_id)
 
-            total_days = leave_type.total_days or 0
-            emp_data["total_leave_days"] += total_days
+                total_days = leave_type.total_days or 0
+                emp_data["total_leave_days"] += total_days
 
-            used_days = used_days_map.get((employee_id, leave_type_id), 0)
-            emp_data["used_leave_days"] += used_days
+                used_days = used_days_map.get((employee_id, leave_type_id), 0)
+                emp_data["used_leave_days"] += used_days
 
-        emp_data["remaining_leave_days"] = (
-            emp_data["total_leave_days"] - emp_data["used_leave_days"]
-        )
+            emp_data["remaining_leave_days"] = (
+                emp_data["total_leave_days"] - emp_data["used_leave_days"]
+            )
 
-        sorted_reqs = sorted(
-            emp_data["leave_requests"],
-            key=lambda x: (x.end_date - x.start_date).days,
-            reverse=True,
-        )
-        for i in range(3):
-            if i < len(sorted_reqs):
-                emp_data[f"period{i+1}_start"] = sorted_reqs[i].start_date
-                emp_data[f"period{i+1}_end"] = sorted_reqs[i].end_date
-            else:
-                emp_data[f"period{i+1}_start"] = ""
-                emp_data[f"period{i+1}_end"] = ""
+            sorted_reqs = sorted(
+                emp_data["leave_requests"],
+                key=lambda x: (x.end_date - x.start_date).days if x.end_date and x.start_date else 0,
+                reverse=True,
+            )
+            for i in range(3):
+                if i < len(sorted_reqs):
+                    emp_data[f"period{i+1}_start"] = sorted_reqs[i].start_date
+                    emp_data[f"period{i+1}_end"] = sorted_reqs[i].end_date
+                else:
+                    emp_data[f"period{i+1}_start"] = None
+                    emp_data[f"period{i+1}_end"] = None
 
-        employee_data[employee_id] = emp_data
+            employee_data[employee_id] = emp_data
 
-    final_employee_data = list(employee_data.values())
-    final_employee_data.sort(key=lambda x: x["employee"].get_full_name())
-
+        final_employee_data = list(employee_data.values())
+        final_employee_data.sort(key=lambda x: x["employee"].get_full_name())
+        
+        company_reports.append({
+            "company": company,
+            "employee_data": final_employee_data,
+        })
+    
+    def get_sort_key(report):
+        if selected_company_id and selected_company_id != "all":
+            if report["company"] and str(report["company"].id) == selected_company_id:
+                return (0, report["company"].company)
+        return (1, report["company"].company if report["company"] else "")
+    
+    company_reports.sort(key=get_sort_key)
+    
+    for report in company_reports:
+        report["employee_pages"] = [
+            report["employee_data"][i:i + 10] for i in range(0, len(report["employee_data"]), 10)
+        ]
+    
     context = {
-        "employee_data": final_employee_data,
-        "company_data": company,
+        "company_reports": company_reports,
         "report_creation_date": date.today(),
         "request": request,
+        "selected_company_id": selected_company_id,
     }
 
-    template_path = "leave/leave_request/leave_request_pdf.html"
+    template_path = "leave/leave_request/leave_request_pdf_pt.html"
     return generate_leave_request_pdf(template_path, context=context, html=False)
-
 
 @login_required
 @hx_request_required
@@ -1198,7 +1228,6 @@ def leave_request_cancel(request, id, emp_id=None):
                 leave_request.approved_carryforward_days = 0
                 leave_request.status = "rejected"
                 leave_request.leave_clashes_count = 0
-
                 if leave_request.multiple_approvals() and not request.user.is_superuser:
                     conditional_requests = leave_request.multiple_approvals()
                     approver = [

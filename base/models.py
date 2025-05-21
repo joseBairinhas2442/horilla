@@ -82,6 +82,8 @@ class Company(HorillaModel):
         null=True,
     )
     objects = models.Manager()
+    nif = models.IntegerField(null=True, blank=True)
+    niss = models.IntegerField(null=True, blank=True)
     date_format = models.CharField(max_length=30, blank=True, null=True)
     time_format = models.CharField(max_length=20, blank=True, null=True)
 

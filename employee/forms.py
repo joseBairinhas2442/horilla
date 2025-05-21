@@ -28,6 +28,7 @@ from typing import Any
 
 from django import forms
 from django.contrib.auth.models import User
+from django.db import models
 from django.db.models import Q
 from django.forms import DateInput, TextInput
 from django.template.loader import render_to_string
@@ -38,6 +39,7 @@ from base.methods import eval_validate, reload_queryset
 from employee.models import (
     Actiontype,
     BonusPoint,
+    Company,
     DisciplinaryAction,
     Employee,
     EmployeeBankDetails,
@@ -318,6 +320,8 @@ class EmployeeWorkInformationForm(ModelForm):
             }
         )
 
+        self.fields["reporting_company_id"].queryset = Company.objects.all()
+
         for field in self.fields:
             self.fields[field].widget.attrs["placeholder"] = self.fields[field].label
             if disable:
@@ -394,6 +398,11 @@ class EmployeeWorkInformationUpdateForm(ModelForm):
             "date_joining": DateInput(attrs={"type": "date"}),
             "contract_end_date": DateInput(attrs={"type": "date"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["reporting_company_id"].queryset = Company._base_manager.all()
+
 
     def as_p(self, *args, **kwargs):
         context = {"form": self}

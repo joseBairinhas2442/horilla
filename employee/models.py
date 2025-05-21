@@ -630,6 +630,14 @@ class EmployeeWorkInformation(models.Model):
         null=True,
         verbose_name=_("Company"),
     )
+    reporting_company_id = models.ForeignKey(
+        Company,
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        related_name="reporting_company",
+        verbose_name=_("Reporting Company"),
+    )
     email = models.EmailField(
         max_length=254, blank=True, null=True, verbose_name=_("Work Email")
     )
