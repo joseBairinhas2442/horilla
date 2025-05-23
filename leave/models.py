@@ -789,54 +789,7 @@ class LeaveRequest(HorillaModel):
                 return LeaveRequest.objects.none()
 
         return overlapping_requests
-
-    def exceeds_available_leave_with_pending(self) -> bool:
-        """
-        Check if this leave request and all other pending ones would exceed the available leave balance,
-        accounting for holiday and company leave exclusions.
-        """
-
-        leave_type = self.leave_type_id
-        available_leave = AvailableLeave.objects.filter(
-            employee_id=self.employee_id,
-            leave_type_id=leave_type.id
-        ).first()
-
-        total_leave_days = available_leave.available_days
-
-        requested_days = (self.end_date - self.start_date).days + 1
-        current_effective_days = cal_effective_requested_days(
-            self.start_date,
-            self.end_date,
-            leave_type,
-            requested_days=requested_days
-        )
-        pending_requests = LeaveRequest.objects.filter(
-            employee_id=self.employee_id,
-            leave_type_id=leave_type.id,
-            status="requested"
-        ).exclude(id=self.id)
-
-        pending_total = 0
-        for req in pending_requests:
-            days = (req.end_date - req.start_date).days + 1
-            effective_days = cal_effective_requested_days(
-                req.start_date,
-                req.end_date,
-                leave_type,
-                requested_days=days
-            )
-            pending_total += effective_days
-
-        total_requested = current_effective_days + pending_total
-
-        if total_requested > total_leave_days:
-            return True
-
-        return False
-
-
-    
+ 
     def save(self, *args, **kwargs):
 
         self.requested_days = calculate_requested_days(
@@ -1053,11 +1006,6 @@ class LeaveRequest(HorillaModel):
                     raise ValidationError(
                         "You cannot request leave for this date range. The requested dates are restricted. Please contact admin."
                     )
-
-        if self.exceeds_available_leave_with_pending():
-             raise ValidationError(
-            ("With pending requests, your leave balance does not allow more leave requests.")
-            )
         return cleaned_data
 
     def exclude_all_leaves(self):
